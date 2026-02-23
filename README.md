@@ -1,25 +1,27 @@
 Shopify AI Product Description Generator
-A high-performance Node.js integration that automates e-commerce copywriting by bridging the Shopify GraphQL Admin API with generative logic. Built for speed, flexibility, and production-scale reliability.
+A high-performance Node.js integration that automates e-commerce copywriting by bridging the Shopify GraphQL Admin API with Google Gemini 2.0/1.5 Flash. Built for speed, production-scale reliability, and graceful service degradation.
 
-🚀 Features
-Dynamic Command-Line Targeting: Update any product in your store by name directly from the terminal.
+🚀 Key Features
+Hybrid AI Engine: Dynamically generates professional product copy using Gemini 2.0/1.5 Flash.
 
-Inventory Discovery: Built-in --list flag to audit and retrieve live product titles from the Shopify catalog.
+Resilient Fallback Architecture: Engineered to detect API rate limits (429 errors) or service outages and automatically switch to a deterministic "Mock Logic" engine to ensure zero demo downtime.
 
-GraphQL Mutation Engine: Performs precise write-back updates to the descriptionHtml field via the Shopify 2026-01 API.
+GraphQL Mutation Engine: Performs precise, authenticated write-back updates to the descriptionHtml field via Shopify's latest API version.
 
-Smart Fallback Logic: Engineered with a product-aware "Mock Mode" to ensure 100% uptime during demonstrations.
+Inventory Discovery: Built-in --list flag to audit and retrieve live product titles directly from the Shopify catalog.
 
-Enterprise UX: Real-time terminal visualization using cli-progress for monitoring the AI lifecycle.
+Enterprise UX: Real-time terminal visualization using cli-progress to monitor the AI lifecycle and API sync status.
 
 🛠️ Tech Stack
 Runtime: Node.js v22+
 
-API: Shopify Admin GraphQL API (v2026-01)
+AI SDK: @google/generative-ai (Gemini Pro/Flash)
 
-UI/UX: cli-progress for real-time terminal feedback.
+E-commerce API: Shopify Admin GraphQL (v2026-01)
 
-Security: dotenv for protected environment variables and credential management.
+UI/UX: cli-progress for real-time terminal feedback
+
+Security: dotenv for encrypted credential management
 
 ⚙️ Setup & Execution
 Clone & Install:
@@ -29,21 +31,18 @@ git clone <your-repo-url>
 cd shopify-ai-demo
 npm install
 Environment Configuration:
-Create a .env file with your credentials:
+Create a .env file in the root directory:
 
 Plaintext
 SHOPIFY_STORE_URL=https://your-store.myshopify.com
 SHOPIFY_ACCESS_TOKEN=shpat_xxxx...
+GEMINI_API_KEY=your_google_ai_key_here
 Usage:
 
-To list all products:
+Audit Inventory: node index.js --list
 
-Bash
-node index.js --list
-To update a specific product:
+Run AI Update: node index.js "The Complete Snowboard"
 
-Bash
-node index.js "The Complete Snowboard"
 📸 Demo Output
 Plaintext
 ==========================================
@@ -54,9 +53,9 @@ Plaintext
 Step 1: Connecting to Shopify Inventory...
 ✅ Connection Established: "The Complete Snowboard"
 
-🤖 AI Processing | ████████████████████████████████████████ | 100% | 100/100 Steps
+🤖 AI Brain Thinking | ████████████████████████████████████████ | 100% | 100/100 Steps
 
-✨ AI Generated Content: "Conquer the slopes with The Complete Snowboard. Engineered for maximum control..."
+✨ CONTENT READY: "Conquer the slopes with The Complete Snowboard. Engineered for maximum control and high-speed stability."
 
 Step 3: Syncing with Shopify Admin...
-✅ SUCCESS: "The Complete Snowboard" has been updated live.
+✅ SUCCESS: "The Complete Snowboard" updated live.
