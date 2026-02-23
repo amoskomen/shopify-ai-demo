@@ -1,25 +1,27 @@
 Shopify AI Product Description Generator
-A high-performance Node.js integration that automates e-commerce copywriting by bridging the Shopify GraphQL Admin API with OpenAI's GPT models.
+A high-performance Node.js integration that automates e-commerce copywriting by bridging the Shopify GraphQL Admin API with generative logic. Built for speed, flexibility, and production-scale reliability.
 
 🚀 Features
-GraphQL Mutation Engine: Fetches live product data and performs write-back updates to the Shopify Storefront.
+Dynamic Command-Line Targeting: Update any product in your store by name directly from the terminal.
 
-Enterprise UX: Features a custom CLI progress tracking system for real-time monitoring of the AI lifecycle.
+Inventory Discovery: Built-in --list flag to audit and retrieve live product titles from the Shopify catalog.
 
-Smart Fallback Logic: Engineered with a "Mock Mode" to ensure 100% uptime during demonstrations or API rate-limiting events.
+GraphQL Mutation Engine: Performs precise write-back updates to the descriptionHtml field via the Shopify 2026-01 API.
 
-Secure Architecture: Implemented with environment-based credential management for production-ready security.
+Smart Fallback Logic: Engineered with a product-aware "Mock Mode" to ensure 100% uptime during demonstrations.
+
+Enterprise UX: Real-time terminal visualization using cli-progress for monitoring the AI lifecycle.
 
 🛠️ Tech Stack
 Runtime: Node.js v22+
 
-Primary APIs: Shopify Admin API (2026-01), OpenAI API (GPT-4o)
+API: Shopify Admin GraphQL API (v2026-01)
 
-UI/UX: cli-progress for terminal visualization
+UI/UX: cli-progress for real-time terminal feedback.
 
-Security: dotenv for protected environment variables
+Security: dotenv for protected environment variables and credential management.
 
-⚙️ Setup
+⚙️ Setup & Execution
 Clone & Install:
 
 Bash
@@ -27,28 +29,34 @@ git clone <your-repo-url>
 cd shopify-ai-demo
 npm install
 Environment Configuration:
-Create a .env file with the following keys:
+Create a .env file with your credentials:
 
 Plaintext
 SHOPIFY_STORE_URL=https://your-store.myshopify.com
 SHOPIFY_ACCESS_TOKEN=shpat_xxxx...
-OPENAI_API_KEY=sk-xxxx...
-Execution:
+Usage:
+
+To list all products:
 
 Bash
-node index.js
+node index.js --list
+To update a specific product:
+
+Bash
+node index.js "The Complete Snowboard"
 📸 Demo Output
 Plaintext
 ==========================================
 🚀 STARTING LIVE AI DEMO: amos-ai-demo.myshopify.com
+🎯 TARGETING: "The Complete Snowboard"
 ==========================================
 
 Step 1: Connecting to Shopify Inventory...
-✅ Target Found: "Premium Weekend Bag"
+✅ Connection Established: "The Complete Snowboard"
 
 🤖 AI Processing | ████████████████████████████████████████ | 100% | 100/100 Steps
 
-✨ AI Generated Content: "Elevate your travels with the Premium Weekend Bag. Crafted for durability and sophisticated style..."
+✨ AI Generated Content: "Conquer the slopes with The Complete Snowboard. Engineered for maximum control..."
 
 Step 3: Syncing with Shopify Admin...
-✅ LIVE UPDATE SUCCESSFUL: Storefront updated.
+✅ SUCCESS: "The Complete Snowboard" has been updated live.
