@@ -1,61 +1,66 @@
-Shopify AI Product Description Generator
-A high-performance Node.js integration that automates e-commerce copywriting by bridging the Shopify GraphQL Admin API with Google Gemini 2.0/1.5 Flash. Built for speed, production-scale reliability, and graceful service degradation.
+Shopify AI Product Intelligence Tool (Multi-LLM)
+A high-performance Node.js agent that automates e-commerce copywriting by bridging the Shopify GraphQL Admin API with a resilient, multi-engine AI architecture.
 
 🚀 Key Features
-Hybrid AI Engine: Dynamically generates professional product copy using Gemini 2.0/1.5 Flash.
+Multi-LLM Hybrid Engine: Dynamically orchestrates between Groq (Llama 3.3 70B) for sub-second inference and Google Gemini 1.5 Flash as a secondary high-context provider.
 
-Resilient Fallback Architecture: Engineered to detect API rate limits (429 errors) or service outages and automatically switch to a deterministic "Mock Logic" engine to ensure zero demo downtime.
+Resilient Fallback Architecture: Engineered with a 3-tier safety net:
 
-GraphQL Mutation Engine: Performs precise, authenticated write-back updates to the descriptionHtml field via Shopify's latest API version.
+Primary: Groq (High-speed Llama 3)
+
+Secondary: Gemini (Redundancy)
+
+Tertiary: Deterministic Mock Logic (Ensures 100% demo uptime even during global API outages).
+
+GraphQL Mutation Engine: Performs authenticated write-back updates to the descriptionHtml field via Shopify's latest API version (v2026-01).
 
 Inventory Discovery: Built-in --list flag to audit and retrieve live product titles directly from the Shopify catalog.
 
-Enterprise UX: Real-time terminal visualization using cli-progress to monitor the AI lifecycle and API sync status.
+Enterprise Terminal UI: Real-time visualization using cli-progress to monitor the AI lifecycle and identify which engine is currently processing.
 
 🛠️ Tech Stack
 Runtime: Node.js v22+
 
-AI SDK: @google/generative-ai (Gemini Pro/Flash)
+AI Engines: Groq SDK (Llama 3.3), @google/generative-ai (Gemini)
 
-E-commerce API: Shopify Admin GraphQL (v2026-01)
+E-commerce API: Shopify Admin GraphQL
 
 UI/UX: cli-progress for real-time terminal feedback
 
-Security: dotenv for encrypted credential management
+Security: dotenv for secure credential management
 
 ⚙️ Setup & Execution
-Clone & Install:
-
+1. Clone & Install
 Bash
-git clone <your-repo-url>
+git clone https://github.com/amoskomen/shopify-ai-demo
 cd shopify-ai-demo
 npm install
-Environment Configuration:
+2. Environment Configuration
 Create a .env file in the root directory:
 
 Plaintext
-SHOPIFY_STORE_URL=https://your-store.myshopify.com
+SHOPIFY_STORE_URL=your-store-name.myshopify.com
 SHOPIFY_ACCESS_TOKEN=shpat_xxxx...
-GEMINI_API_KEY=your_google_ai_key_here
-Usage:
-
+GROQ_API_KEY=gsk_xxxx...
+GEMINI_API_KEY=AIzaSyxxxx...
+3. Usage
 Audit Inventory: node index.js --list
 
-Run AI Update: node index.js "The Complete Snowboard"
+Run AI Update: node index.js "Gift Card" (or any product title)
 
 📸 Demo Output
 Plaintext
 ==========================================
-🚀 STARTING LIVE AI DEMO: amos-ai-demo.myshopify.com
-🎯 TARGETING: "The Complete Snowboard"
+🚀 STARTING MULTI-LLM AGENT: amos-ai-demo.myshopify.com
+🎯 TARGETING: "Gift Card"
 ==========================================
 
 Step 1: Connecting to Shopify Inventory...
-✅ Connection Established: "The Complete Snowboard"
+✅ Connection Established: "Gift Card"
 
-🤖 AI Brain Thinking | ████████████████████████████████████████ | 100% | 100/100 Steps
+🤖 AI Brain Thinking (Groq/Llama) | ████████████████████████████████████████ | 100%
 
-✨ CONTENT READY: "Conquer the slopes with The Complete Snowboard. Engineered for maximum control and high-speed stability."
+✨ CONTENT READY: "Give the gift of choice with our premium Gift Card. Perfect for any occasion..."
 
 Step 3: Syncing with Shopify Admin...
-✅ SUCCESS: "The Complete Snowboard" updated live.
+✅ SUCCESS: "Gift Card" updated live.

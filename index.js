@@ -1,41 +1,44 @@
 require('dotenv').config();
 const cliProgress = require('cli-progress');
+const Groq = require("groq-sdk");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
+// Keys
 const SHOP = process.env.SHOPIFY_STORE_URL;
 const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+const GROQ_KEY = process.env.GROQ_API_KEY;
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
 
-// Initialize Gemini only if key exists
+// Initialize AI Clients
+const groq = GROQ_KEY ? new Groq({ apiKey: GROQ_KEY }) : null;
 const genAI = GEMINI_KEY ? new GoogleGenerativeAI(GEMINI_KEY) : null;
 
 const args = process.argv.slice(2);
-const targetProductName = args.join(' ');
+const targetProductName = args.filter(a => !a.startsWith('--')).join(' ');
 
 async function runDemo() {
-    if (args[0] === '--list') return listProducts();
+    if (args.includes('--list')) return listProducts();
 
-    const finalTarget = targetProductName || "The Complete Snowboard";
+    const finalTarget = targetProductName || "Gift Card";
+    const baseUrl = SHOP.replace(/^https?:\/\//, "").trim();
+    const endpoint = `https://${baseUrl}/admin/api/2026-01/graphql.json`;
 
     console.log("==========================================");
-    console.log(`🚀 STARTING LIVE AI DEMO: ${SHOP}`);
+    console.log(`🚀 STARTING MULTI-LLM AGENT: ${SHOP}`);
     console.log(`🎯 TARGETING: "${finalTarget}"`);
     console.log("==========================================\n");
 
-    const baseUrl = SHOP.endsWith('/') ? SHOP.slice(0, -1) : SHOP;
-    const endpoint = `${baseUrl}/admin/api/2026-01/graphql.json`;
-
     const progressBar = new cliProgress.SingleBar({
-        format: '🤖 AI Brain Thinking | {bar} | {percentage}% | {value}/{total} Steps',
+        format: '🤖 AI Brain Thinking ({engine}) | {bar} | {percentage}%',
         barCompleteChar: '\u2588',
         barIncompleteChar: '\u2591',
         hideCursor: true
     });
 
     try {
+        // --- STEP 1: FETCH ---
         console.log("Step 1: Connecting to Shopify Inventory...");
-        
-        const getProductQuery = `query($query: String!) { products(first: 1, query: $query) { edges { node { id title } } } }`;
+        const getProductQuery = `query($query: String!) { products(first: 1, query: $query) { edges { node { id title descriptionHtml } } } }`;
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': TOKEN },
@@ -51,41 +54,44 @@ async function runDemo() {
         }
 
         console.log(`✅ Connection Established: "${product.title}"\n`);
-        progressBar.start(100, 0);
-
+        
+        // --- STEP 2: AI GENERATION WITH FAILOVER ---
         let finalAIContent = "";
+        let engineUsed = "Groq/Llama";
 
-        // --- AI GENERATION LOGIC ---
-        if (genAI) {
-            try {
-                // Using Gemini 2.0 Flash for best performance
+        progressBar.start(100, 0, { engine: engineUsed });
+
+        try {
+            if (groq) {
+                // Try Groq First (Fastest)
+                const completion = await groq.chat.completions.create({
+                    messages: [{ role: "user", content: `Write a 2-sentence SEO description for ${product.title}. No conversational filler.` }],
+                    model: "llama-3.3-70b-versatile",
+                });
+                finalAIContent = completion.choices[0].message.content;
+            } else if (genAI) {
+                // Try Gemini Second
+                engineUsed = "Gemini";
                 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-                const prompt = `Write a 2-sentence professional, high-converting Shopify description for "${product.title}". Focus on quality and lifestyle. Do not use Markdown formatting in the response.`;
-                
-                const result = await model.generateContent(prompt);
+                const result = await model.generateContent(`Write a 2-sentence description for ${product.title}`);
                 finalAIContent = result.response.text();
-            } catch (aiErr) {
-                // This will tell us EXACTLY why it failed (e.g., API Key or Model Name)
-                console.log("\n📡 External AI Service busy... activating internal optimization engine.");
-                console.log("⚠️ Falling back to Mock Logic...");
-                finalAIContent = getMockDescription(product.title);
+            } else {
+                throw new Error("No AI Keys");
             }
-        } else {
-            console.log("\n⚠️ No API Key found, using Mock Logic...");
+        } catch (e) {
+            engineUsed = "Mock Logic";
             finalAIContent = getMockDescription(product.title);
         }
 
-        // Animated progress bar for demo effect
-        let value = 0;
-        const timer = setInterval(() => {
-            value += 25;
-            progressBar.update(value);
-            if (value >= 100) {
-                clearInterval(timer);
-                progressBar.stop();
-                finishUpdate(product, endpoint, finalAIContent);
-            }
-        }, 150);
+        // Animated UI
+        for (let i = 0; i <= 100; i += 25) {
+            progressBar.update(i, { engine: engineUsed });
+            await new Promise(r => setTimeout(r, 100));
+        }
+        progressBar.stop();
+
+        // --- STEP 3: UPDATE ---
+        await finishUpdate(product, endpoint, TOKEN, finalAIContent);
 
     } catch (error) {
         console.error("\n❌ GLOBAL ERROR:", error.message);
@@ -93,54 +99,34 @@ async function runDemo() {
 }
 
 function getMockDescription(title) {
-    const t = title.toLowerCase();
-    if (t.includes("snowboard")) return `Conquer the slopes with ${title}. Engineered for maximum control and high-speed stability.`;
-    if (t.includes("gift card")) return `Give the gift of choice with ${title}. Perfect for any occasion.`;
     return `Experience the premium quality of ${title}. Optimized for performance and style.`;
 }
 
-async function finishUpdate(product, endpoint, content) {
+async function finishUpdate(product, endpoint, token, content) {
     console.log(`\n✨ CONTENT READY: "${content.trim()}"`);
-    console.log(`\nStep 3: Syncing with Shopify Admin...`);
+    console.log(`Step 3: Syncing with Shopify Admin...`);
 
-    const updateMutation = `
-      mutation productUpdate($input: ProductInput!) {
-        productUpdate(input: $input) {
-          product { id }
-          userErrors { message }
-        }
-      }
-    `;
+    const updateMutation = `mutation productUpdate($input: ProductInput!) { productUpdate(input: $input) { product { id } userErrors { message } } }`;
+    const updateResponse = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': token },
+        body: JSON.stringify({
+            query: updateMutation,
+            variables: { input: { id: product.id, descriptionHtml: `<p>${content.trim()}</p>` } }
+        }),
+    });
 
-    try {
-        const updateResponse = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': TOKEN },
-            body: JSON.stringify({
-                query: updateMutation,
-                variables: { 
-                    input: { 
-                        id: product.id, 
-                        descriptionHtml: `<strong>${content.trim()}</strong>` 
-                    } 
-                }
-            }),
-        });
-
-        const updateData = await updateResponse.json();
-        if (updateData.data?.productUpdate?.product) {
-            console.log(`\n✅ SUCCESS: "${product.title}" updated live.`);
-        } else {
-            console.log("\n❌ Shopify Update Failed:", updateData.errors || updateData.data.productUpdate.userErrors);
-        }
-    } catch (err) {
-        console.error("\n❌ Update Error:", err.message);
+    const updateData = await updateResponse.json();
+    if (updateData.data?.productUpdate?.product) {
+        console.log(`✅ SUCCESS: "${product.title}" updated live.`);
+    } else {
+        console.log("\n❌ Shopify Update Failed.");
     }
 }
 
 async function listProducts() {
-    const baseUrl = SHOP.endsWith('/') ? SHOP.slice(0, -1) : SHOP;
-    const endpoint = `${baseUrl}/admin/api/2026-01/graphql.json`;
+    const rawUrl = SHOP.replace(/^https?:\/\//, "").trim();
+    const endpoint = `https://${rawUrl}/admin/api/2026-01/graphql.json`;
     const listQuery = `{ products(first: 20) { edges { node { title } } } }`;
     
     try {
@@ -152,10 +138,7 @@ async function listProducts() {
         const data = await response.json();
         console.log("\n--- CURRENT STORE INVENTORY ---");
         data.data.products.edges.forEach(edge => console.log(`• ${edge.node.title}`));
-        console.log("-------------------------------\n");
-    } catch (e) {
-        console.log("❌ List Error:", e.message);
-    }
+    } catch (e) { console.log("❌ List Error:", e.message); }
 }
 
 runDemo();
