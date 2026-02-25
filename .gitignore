@@ -1,2 +1,13 @@
-node_modules
+# Ignore dependencies
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Ignore local environment files (Your private keys!)
 .env
+backend/.env
+frontend/.env
+
+# Ignore OS files
+.DS_Store
+dist/
