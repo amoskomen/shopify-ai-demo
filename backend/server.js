@@ -2,7 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const Groq = require("groq-sdk");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
 app.use(cors());
@@ -13,8 +12,9 @@ const SHOP = process.env.SHOPIFY_STORE_URL.replace(/^https?:\/\//, "").replace(/
 const TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 const endpoint = `https://${SHOP}/admin/api/2026-01/graphql.json`;
 
+// AI Clients
 const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
-const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
+const MISTRAL_KEY = process.env.MISTRAL_API_KEY;
 
 // --- HELPERS ---
 const getMockDescription = (title) => ({
@@ -24,7 +24,7 @@ const getMockDescription = (title) => ({
 
 // --- ROUTES ---
 
-// 1. Fetch Products for Dashboard
+// 1. Fetch Products
 app.get('/api/products', async (req, res) => {
     try {
         const query = `{ products(first: 8) { edges { node { id title tags descriptionHtml images(first:1){ nodes { url } } } } } }`;
@@ -41,21 +41,21 @@ app.get('/api/products', async (req, res) => {
     }
 });
 
-// 2. Multi-LLM Optimization Route (The Brain)
+// 2. Multi-LLM Optimization (Groq -> Mistral -> Mock)
 app.post('/api/optimize', async (req, res) => {
     const { id, title } = req.body;
     let finalAIContent = null;
     let engineUsed = "";
 
+    const prompt = `Write a premium 2-sentence SEO description and 3 tags for: ${title}. Return JSON only: {"desc": "...", "tags": ["t1", "t2", "t3"]}`;
+
     console.log(`\n🤖 Agent Task: Optimize "${title}"`);
 
     try {
-        // --- STEP 1: AI GENERATION WITH FAILOVER ---
-        const prompt = `Write a premium 2-sentence SEO description and 3 tags for: ${title}. Return JSON only: {"desc": "...", "tags": ["t1", "t2", "t3"]}`;
-
-        try {
-            if (groq) {
-                console.log("⚡ Trying Groq (Llama 3.3)...");
+        // --- TIER 1: GROQ ---
+        if (groq) {
+            try {
+                console.log("⚡ Tier 1: Trying Groq (Llama 3.3)...");
                 const completion = await groq.chat.completions.create({
                     messages: [{ role: "user", content: prompt }],
                     model: "llama-3.3-70b-versatile",
@@ -63,22 +63,33 @@ app.post('/api/optimize', async (req, res) => {
                 });
                 finalAIContent = JSON.parse(completion.choices[0].message.content);
                 engineUsed = "Groq/Llama";
-            } else {
-                throw new Error("Groq not configured");
-            }
-        } catch (e) {
-            console.log("⚠️ Groq Failed, failing over to Gemini...");
-            if (genAI) {
-                const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-                const result = await model.generateContent(prompt + " Ensure result is strictly JSON.");
-                // Clean markdown backticks if Gemini adds them
-                const text = result.response.text().replace(/```json|```/g, "");
-                finalAIContent = JSON.parse(text);
-                engineUsed = "Gemini Flash";
-            } else {
-                throw new Error("No AI providers available");
-            }
+            } catch (e) { console.log("⚠️ Groq Failed."); }
         }
+
+        // --- TIER 2: MISTRAL ---
+        if (!finalAIContent && MISTRAL_KEY) {
+            try {
+                console.log("🌪️ Tier 2: Trying Mistral AI...");
+                const mistralRes = await fetch('https://api.mistral.ai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${MISTRAL_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: "mistral-small-latest",
+                        messages: [{ role: "user", content: prompt }],
+                        response_format: { type: "json_object" }
+                    })
+                });
+                const mistralData = await mistralRes.json();
+                finalAIContent = JSON.parse(mistralData.choices[0].message.content);
+                engineUsed = "Mistral AI";
+            } catch (e) { console.log("⚠️ Mistral Failed."); }
+        }
+
+        if (!finalAIContent) throw new Error("No AI providers succeeded.");
+
     } catch (err) {
         console.log("❌ All LLMs failed. Using Mock Safety Logic.");
         finalAIContent = getMockDescription(title);
@@ -115,5 +126,4 @@ app.post('/api/optimize', async (req, res) => {
 
 app.listen(5000, () => {
     console.log(`🚀 AI Agent Backend Live | Store: ${SHOP}`);
-    if (!groq && !genAI) console.log("⚠️ WARNING: No AI Keys found. Running in Mock Mode.");
 });
